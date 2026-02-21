@@ -1,0 +1,8 @@
+{
+    "name": "oas-solver-backend",
+    "version": "1.0.0",
+    "main": "api/solve.js",
+    "dependencies": {
+        "node-fetch": "^2.6.7"
+    }
+}

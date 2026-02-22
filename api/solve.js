@@ -1,10 +1,10 @@
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 
-// 2-hour Cache for License Verification
+// 10-minute Cache for License Verification
 // Note: This persists while the Vercel lambda instance is warm.
 const verificationCache = {};
-const CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 Hours in ms
+const CACHE_DURATION = 10 * 60 * 1000; // 10 Minutes in ms
 
 module.exports = async (req, res) => {
     // Enable CORS

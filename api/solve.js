@@ -40,10 +40,10 @@ module.exports = async (req, res) => {
         if (licenseKey === "admin-123") {
             isValidLicense = true;
         }
-        // 2. Perform Algorithmic Check
-        else if (licenseKey && licenseKey.startsWith("VEDAX-")) {
+        // 2. Perform Algorithmic Check (Dynamic Prefix)
+        else if (licenseKey) {
             const parts = licenseKey.split("-");
-            if (parts.length === 3) {
+            if (parts.length === 3 && parts[2].length === 4) {
                 const payload = `${parts[0]}-${parts[1]}`;
                 const providedChecksum = parts[2];
 

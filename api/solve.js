@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 module.exports = async (req, res) => {
     // Enable CORS
@@ -19,15 +20,23 @@ module.exports = async (req, res) => {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const crypto = require('crypto');
     const SECRET_SALT = "parrot-oas-secret-2026";
 
     try {
         const { question, options, licenseKey } = req.body;
 
-        // Algorithmic Checksum Validation
+        if (!question || !options) {
+            return res.status(400).json({ error: 'Missing question or options' });
+        }
+
         let isValidLicense = false;
-        if (licenseKey && licenseKey.startsWith("VEDAX-")) {
+
+        // 1. Check for Admin Override
+        if (licenseKey === "admin-123") {
+            isValidLicense = true;
+        }
+        // 2. Perform Algorithmic Check
+        else if (licenseKey && licenseKey.startsWith("VEDAX-")) {
             const parts = licenseKey.split("-");
             if (parts.length === 3) {
                 const payload = `${parts[0]}-${parts[1]}`;
@@ -38,28 +47,36 @@ module.exports = async (req, res) => {
                 const calculatedChecksum = hmac.digest('hex').substring(0, 4).toUpperCase();
 
                 if (providedChecksum === calculatedChecksum) {
-                    isValidLicense = true;
+                    // 3. Live Check against Veda Platform
+                    try {
+                        const verifyRes = await fetch(`https://vedax.vercel.app/api/verify?hwid=${licenseKey}`);
+                        const verifyData = await verifyRes.json();
+
+                        if (verifyData.status === 'approved') {
+                            isValidLicense = true;
+                        } else {
+                            return res.status(403).json({
+                                error: `Access Denied: Your license is currently ${verifyData.status || 'pending'}. Please wait for approval at vedax.vercel.app.`
+                            });
+                        }
+                    } catch (vErr) {
+                        console.error("Veda Verification Error:", vErr);
+                        return res.status(500).json({ error: 'Verification Server Down. Try again later.' });
+                    }
                 }
             }
         }
 
-        // Fallback for admin during development
-        if (licenseKey === "admin-123") isValidLicense = true;
-
         if (!isValidLicense) {
             return res.status(401).json({ error: 'Unauthorized: Invalid or Missing License Key' });
-        }
-
-        if (!question || !options) {
-            return res.status(400).json({ error: 'Missing question or options' });
         }
 
         const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) {
             return res.status(500).json({ error: 'GROQ_API_KEY not configured on server' });
         }
-        const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
 
+        const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
         const prompt = `Solve this multiple choice question and return ONLY the option number (1, 2, 3, or 4). Do not provide any explanation or text.
 Question: ${question}
 Options:
@@ -83,7 +100,6 @@ Answer Number:`;
 
         if (data.choices && data.choices.length > 0) {
             const answer = data.choices[0].message.content.trim();
-            // Return plain text answer number
             res.status(200).send(answer);
         } else {
             console.error('Groq Error:', data);

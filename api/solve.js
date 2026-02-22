@@ -1,6 +1,11 @@
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 
+// 2-hour Cache for License Verification
+// Note: This persists while the Vercel lambda instance is warm.
+const verificationCache = {};
+const CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 Hours in ms
+
 module.exports = async (req, res) => {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -47,21 +52,37 @@ module.exports = async (req, res) => {
                 const calculatedChecksum = hmac.digest('hex').substring(0, 4).toUpperCase();
 
                 if (providedChecksum === calculatedChecksum) {
-                    // 3. Live Check against Veda Platform
-                    try {
-                        const verifyRes = await fetch(`https://vedax.vercel.app/api/verify?hwid=${licenseKey}`);
-                        const verifyData = await verifyRes.json();
+                    // Check Cache First
+                    const now = Date.now();
+                    const cached = verificationCache[licenseKey];
 
-                        if (verifyData.status === 'approved') {
-                            isValidLicense = true;
-                        } else {
-                            return res.status(403).json({
-                                error: `Access Denied: Your license is currently ${verifyData.status || 'pending'}. Please wait for approval at vedax.vercel.app.`
-                            });
+                    if (cached && (now - cached.timestamp < CACHE_DURATION)) {
+                        console.log(`Using cached verification for: ${licenseKey}`);
+                        isValidLicense = true;
+                    } else {
+                        // 3. Live Check against Veda Platform
+                        try {
+                            const verifyRes = await fetch(`https://vedax.vercel.app/api/verify?hwid=${licenseKey}`);
+                            const verifyData = await verifyRes.json();
+
+                            if (verifyData.status === 'approved') {
+                                isValidLicense = true;
+                                // Update Cache
+                                verificationCache[licenseKey] = {
+                                    status: 'approved',
+                                    timestamp: now
+                                };
+                            } else {
+                                // If status changed to blocked/pending, remove from cache immediately
+                                delete verificationCache[licenseKey];
+                                return res.status(403).json({
+                                    error: `Access Denied: Your license is currently ${verifyData.status || 'pending'}. Please wait for approval at vedax.vercel.app.`
+                                });
+                            }
+                        } catch (vErr) {
+                            console.error("Veda Verification Error:", vErr);
+                            return res.status(500).json({ error: 'Verification Server Down. Try again later.' });
                         }
-                    } catch (vErr) {
-                        console.error("Veda Verification Error:", vErr);
-                        return res.status(500).json({ error: 'Verification Server Down. Try again later.' });
                     }
                 }
             }

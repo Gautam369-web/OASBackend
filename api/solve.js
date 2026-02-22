@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
     const SECRET_SALT = "parrot-oas-secret-2026";
 
     try {
-        const { question, options, licenseKey } = req.body;
+        const { question, options, licenseKey, deviceId } = req.body;
 
         if (!question || !options) {
             return res.status(400).json({ error: 'Missing question or options' });
@@ -52,31 +52,32 @@ module.exports = async (req, res) => {
                 const calculatedChecksum = hmac.digest('hex').substring(0, 4).toUpperCase();
 
                 if (providedChecksum === calculatedChecksum) {
-                    // Check Cache First
+                    // Check Cache First (Bound to license + device)
                     const now = Date.now();
-                    const cached = verificationCache[licenseKey];
+                    const cacheKey = `${licenseKey}:${deviceId || 'nodev'}`;
+                    const cached = verificationCache[cacheKey];
 
                     if (cached && (now - cached.timestamp < CACHE_DURATION)) {
-                        console.log(`Using cached verification for: ${licenseKey}`);
+                        console.log(`Using cached verification for: ${cacheKey}`);
                         isValidLicense = true;
                     } else {
                         // 3. Live Check against Veda Platform
                         try {
-                            const verifyRes = await fetch(`https://vedax.vercel.app/api/verify?hwid=${licenseKey}`);
+                            const verifyRes = await fetch(`https://vedax.vercel.app/api/verify?hwid=${licenseKey}&deviceId=${deviceId || ''}`);
                             const verifyData = await verifyRes.json();
 
                             if (verifyData.status === 'approved') {
                                 isValidLicense = true;
                                 // Update Cache
-                                verificationCache[licenseKey] = {
+                                verificationCache[cacheKey] = {
                                     status: 'approved',
                                     timestamp: now
                                 };
                             } else {
                                 // If status changed to blocked/pending, remove from cache immediately
-                                delete verificationCache[licenseKey];
+                                delete verificationCache[cacheKey];
                                 return res.status(403).json({
-                                    error: `Access Denied: Your license is currently ${verifyData.status || 'pending'}. Please wait for approval at vedax.vercel.app.`
+                                    error: `Access Denied: ${verifyData.status === 'blocked' ? 'Key in use on another device' : 'Your license is pending'}.`
                                 });
                             }
                         } catch (vErr) {

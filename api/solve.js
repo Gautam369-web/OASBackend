@@ -19,8 +19,36 @@ module.exports = async (req, res) => {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    const crypto = require('crypto');
+    const SECRET_SALT = "parrot-oas-secret-2026";
+
     try {
-        const { question, options } = req.body;
+        const { question, options, licenseKey } = req.body;
+
+        // Algorithmic Checksum Validation
+        let isValidLicense = false;
+        if (licenseKey && licenseKey.startsWith("VEDAX-")) {
+            const parts = licenseKey.split("-");
+            if (parts.length === 3) {
+                const payload = `${parts[0]}-${parts[1]}`;
+                const providedChecksum = parts[2];
+
+                const hmac = crypto.createHmac('sha256', SECRET_SALT);
+                hmac.update(payload);
+                const calculatedChecksum = hmac.digest('hex').substring(0, 4).toUpperCase();
+
+                if (providedChecksum === calculatedChecksum) {
+                    isValidLicense = true;
+                }
+            }
+        }
+
+        // Fallback for admin during development
+        if (licenseKey === "admin-123") isValidLicense = true;
+
+        if (!isValidLicense) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid or Missing License Key' });
+        }
 
         if (!question || !options) {
             return res.status(400).json({ error: 'Missing question or options' });

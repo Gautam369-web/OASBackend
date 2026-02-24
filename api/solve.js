@@ -93,39 +93,48 @@ module.exports = async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized: Invalid or Missing License Key' });
         }
 
-        const apiKey = process.env.GROQ_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-            return res.status(500).json({ error: 'GROQ_API_KEY not configured on server' });
+            return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server. Please set it in Vercel environment variables.' });
         }
 
         const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
-        const prompt = `Solve this multiple choice question and return ONLY the option number (1, 2, 3, or 4). Do not provide any explanation or text.
+        const promptText = `Solve this multiple choice question and return ONLY the option number (1, 2, 3, or 4). Do not provide any explanation or text.
 Question: ${question}
 Options:
 ${formattedOptions}
 Answer Number:`;
 
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+
+        const response = await fetch(geminiUrl, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                messages: [{ role: "user", content: prompt }],
-                model: "llama-3.3-70b-versatile",
-                temperature: 0.1
+                contents: [{
+                    parts: [{
+                        text: promptText
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.1,
+                    topP: 0.95,
+                    topK: 40,
+                    maxOutputTokens: 10,
+                }
             })
         });
 
         const data = await response.json();
 
-        if (data.choices && data.choices.length > 0) {
-            const answer = data.choices[0].message.content.trim();
+        if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts.length > 0) {
+            const answer = data.candidates[0].content.parts[0].text.trim();
             res.status(200).send(answer);
         } else {
-            console.error('Groq Error:', data);
-            res.status(500).json({ error: 'Failed to solve' });
+            console.error('Gemini Error:', JSON.stringify(data, null, 2));
+            res.status(500).json({ error: 'Failed to solve with Gemini' });
         }
     } catch (error) {
         console.error('Server Error:', error);

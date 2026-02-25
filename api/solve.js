@@ -111,10 +111,11 @@ module.exports = async (req, res) => {
                 "Authorization": `Bearer ${apiKey}`,
                 "HTTP-Referer": "https://vedax.vercel.app",
                 "X-Title": "OAS Solver Proxy",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             },
             body: JSON.stringify({
-                model: "google/gemini-2.0-flash-001",
+                model: "google/gemini-2.0-flash-lite:free",
                 messages: [{ role: "user", content: promptText }],
                 temperature: 0.1,
                 max_tokens: 10
@@ -128,11 +129,12 @@ module.exports = async (req, res) => {
             console.error('OpenRouter API Error:', data.error);
             const keyPrefix = apiKey.substring(0, 15);
             return res.status(500).json({
-                error: `VERSION: v5-FIX | OpenRouter Trace: ${data.error.message}`,
+                error: `VERSION: v6-DEBUG | OpenRouter Trace: ${data.error.message}`,
                 diagnostics: {
                     status: response.status,
                     keyUsed: `${keyPrefix}...`,
                     keyLength: apiKey.length,
+                    headers: Object.fromEntries(response.headers.entries()),
                     errorDetail: data.error
                 }
             });

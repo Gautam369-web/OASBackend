@@ -93,9 +93,9 @@ module.exports = async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized: Invalid or Missing License Key' });
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.OPENROUTER_API_KEY;
         if (!apiKey) {
-            return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server. Please set it in Vercel environment variables.' });
+            return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured on server' });
         }
 
         const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
@@ -105,57 +105,39 @@ Options:
 ${formattedOptions}
 Answer Number:`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+        const openRouterUrl = "https://openrouter.ai/api/v1/chat/completions";
 
-        const response = await fetch(geminiUrl, {
+        const response = await fetch(openRouterUrl, {
             method: "POST",
             headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "HTTP-Referer": "https://vedax.vercel.app", // Required by OpenRouter
+                "X-Title": "OAS Solver Proxy",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: promptText
-                    }]
-                }],
-                safetySettings: [
-                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                ],
-                generationConfig: {
-                    temperature: 0.1,
-                    topP: 0.95,
-                    topK: 40,
-                    maxOutputTokens: 10,
-                }
+                model: "google/gemini-2.0-flash-001", // High accuracy, low latency
+                messages: [{ role: "user", content: promptText }],
+                temperature: 0.1,
+                max_tokens: 10
             })
         });
 
         const data = await response.json();
 
-        // 1. Check for API-level errors (Rate Limits, Auth, etc)
+        // 1. Check for API-level errors
         if (data.error) {
-            console.error('Gemini API Error:', data.error);
-            return res.status(data.error.code || 500).json({
-                error: `Gemini API Error: ${data.error.message}`,
-                code: data.error.status
-            });
+            console.error('OpenRouter API Error:', data.error);
+            return res.status(500).json({ error: `OpenRouter Error: ${data.error.message || 'Unknown API Error'}` });
         }
 
-        // 2. Check for Safety Blocks (Finish Reason: SAFETY)
-        if (data.candidates && data.candidates[0].finishReason === "SAFETY") {
-            return res.status(403).json({ error: "Question blocked by Gemini Safety Filters" });
-        }
-
-        // 3. Extract Answer
-        if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts.length > 0) {
-            const answer = data.candidates[0].content.parts[0].text.trim();
+        // 2. Extract Answer
+        if (data.choices && data.choices.length > 0) {
+            const answer = data.choices[0].message.content.trim();
             res.status(200).send(answer);
         } else {
-            console.error('Gemini Unexpected Response:', JSON.stringify(data, null, 2));
-            res.status(500).json({ error: 'Gemini returned no candidates. This usually happens if the prompt is blocked or the model is unavailable.' });
+            console.error('OpenRouter Unexpected Response:', JSON.stringify(data, null, 2));
+            res.status(500).json({ error: 'OpenRouter returned no response. Check your credits or model status.' });
         }
     } catch (error) {
         console.error('Server Error:', error);

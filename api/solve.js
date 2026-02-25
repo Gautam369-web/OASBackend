@@ -105,7 +105,7 @@ Options:
 ${formattedOptions}
 Answer Number:`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-1b-it:generateContent?key=${geminiKey}`;
 
         const response = await fetch(geminiUrl, {
             method: "POST",

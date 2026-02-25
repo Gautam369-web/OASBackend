@@ -93,60 +93,51 @@ module.exports = async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized: Invalid or Missing License Key' });
         }
 
-        // Use the verified key for immediate functionality on Vercel
-        const apiKey = "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";
-
-        if (!apiKey) {
-            return res.status(500).json({ error: 'OPENROUTER_API_KEY missing' });
+        const geminiKey = process.env.GEMINI_API_KEY;
+        if (!geminiKey) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server. Please set it in Vercel environment variables.' });
         }
 
         const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
-        const promptText = `Solve this MCQ: ${question}\nOptions:\n${formattedOptions}\nReturn ONLY the number.`;
+        const promptText = `Solve this multiple choice question and return ONLY the option number (1, 2, 3, or 4). Do not provide any explanation or text.
+Question: ${question}
+Options:
+${formattedOptions}
+Answer Number:`;
 
-        const openRouterUrl = "https://openrouter.ai/api/v1/chat/completions";
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
 
-        const response = await fetch(openRouterUrl, {
+        const response = await fetch(geminiUrl, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "HTTP-Referer": "https://vedax.vercel.app",
-                "X-Title": "OAS Solver Proxy",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "non-existent-model-999",
-                messages: [{ role: "user", content: promptText }],
-                temperature: 0.1,
-                max_tokens: 10
+                contents: [{
+                    parts: [{
+                        text: promptText
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.1,
+                    topP: 0.95,
+                    topK: 40,
+                    maxOutputTokens: 10,
+                }
             })
         });
 
         const data = await response.json();
 
-        // 1. Check for API-level errors
-        if (data.error) {
-            console.error('OpenRouter API Error:', data.error);
-            const keyPrefix = apiKey.substring(0, 15);
-            return res.status(500).json({
-                error: `VERSION: v7-AUTH-TEST | OpenRouter Trace: ${data.error.message}`,
-                diagnostics: {
-                    status: response.status,
-                    keyUsed: `${keyPrefix}...`,
-                    keyLength: apiKey.length,
-                    headers: Object.fromEntries(response.headers.entries()),
-                    errorDetail: data.error
-                }
-            });
-        }
-
-        // 2. Extract Answer
-        if (data.choices && data.choices.length > 0) {
-            const answer = data.choices[0].message.content.trim();
+        if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts.length > 0) {
+            const resultText = data.candidates[0].content.parts[0].text.trim();
+            // Extract the first number found (1-4)
+            const match = resultText.match(/[1-4]/);
+            const answer = match ? match[0] : resultText;
             res.status(200).send(answer);
         } else {
-            console.error('OpenRouter Unexpected Response:', JSON.stringify(data, null, 2));
-            res.status(500).json({ error: 'OpenRouter returned no response payload.', details: data });
+            console.error('Gemini Error:', JSON.stringify(data, null, 2));
+            res.status(500).json({ error: 'Failed to solve with Gemini', details: data.error || data });
         }
     } catch (error) {
         console.error('Server Error:', error);

@@ -97,7 +97,7 @@ module.exports = async (req, res) => {
         const apiKey = "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";
 
         if (!apiKey) {
-            return res.status(500).json({ error: 'OPENROUTER_API_KEY missing [v1.0.2]' });
+            return res.status(500).json({ error: 'OPENROUTER_API_KEY missing' });
         }
 
         const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
@@ -130,7 +130,7 @@ Answer Number:`;
         // 1. Check for API-level errors
         if (data.error) {
             console.error('OpenRouter API Error:', data.error);
-            return res.status(500).json({ error: `VERIFY-DEPLOYMENT: OpenRouter Error: ${data.error.message || 'Unknown API Error'}` });
+            return res.status(500).json({ error: `OpenRouter Error: ${data.error.message || 'Unknown API Error'}` });
         }
 
         // 2. Extract Answer

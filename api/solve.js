@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+// Native fetch used
 const crypto = require('crypto');
 
 // 10-minute Cache for License Verification
@@ -114,8 +114,6 @@ Answer Number:`;
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${apiKey}`,
-                "HTTP-Referer": "https://vedax.vercel.app",
-                "X-Title": "OAS Solver Proxy",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -137,6 +135,7 @@ Answer Number:`;
                 diagnostics: {
                     status: response.status,
                     keyUsed: `${keyPrefix}...`,
+                    keyLength: apiKey.length,
                     errorDetail: data.error
                 }
             });

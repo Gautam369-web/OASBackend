@@ -137,7 +137,10 @@ Answer Number:`;
             res.status(200).send(answer);
         } else {
             console.error('Gemini Error:', JSON.stringify(data, null, 2));
-            res.status(500).json({ error: 'Failed to solve with Gemini', details: data.error || data });
+            res.status(500).json({
+                error: 'VERSION: v8-NATIVE-GEMINI-1.5 | Failed to solve with Gemini',
+                details: data.error || data
+            });
         }
     } catch (error) {
         console.error('Server Error:', error);

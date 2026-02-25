@@ -115,7 +115,7 @@ module.exports = async (req, res) => {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             },
             body: JSON.stringify({
-                model: "google/gemini-2.0-flash-lite:free",
+                model: "non-existent-model-999",
                 messages: [{ role: "user", content: promptText }],
                 temperature: 0.1,
                 max_tokens: 10
@@ -129,7 +129,7 @@ module.exports = async (req, res) => {
             console.error('OpenRouter API Error:', data.error);
             const keyPrefix = apiKey.substring(0, 15);
             return res.status(500).json({
-                error: `VERSION: v6-DEBUG | OpenRouter Trace: ${data.error.message}`,
+                error: `VERSION: v7-AUTH-TEST | OpenRouter Trace: ${data.error.message}`,
                 diagnostics: {
                     status: response.status,
                     keyUsed: `${keyPrefix}...`,

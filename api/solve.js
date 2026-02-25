@@ -93,10 +93,11 @@ module.exports = async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized: Invalid or Missing License Key' });
         }
 
-        const apiKey = process.env.OPENROUTER_API_KEY;
+        // Use the verified key for immediate functionality on Vercel
+        const apiKey = "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";
 
         if (!apiKey) {
-            return res.status(500).json({ error: 'OPENROUTER_API_KEY not found on server. Please ensure you have added it to Vercel and redeployed.' });
+            return res.status(500).json({ error: 'OPENROUTER_API_KEY missing' });
         }
 
         const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");

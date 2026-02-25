@@ -131,7 +131,7 @@ Answer Number:`;
             console.error('OpenRouter API Error:', data.error);
             const keyPrefix = apiKey.substring(0, 15);
             return res.status(500).json({
-                error: `OpenRouter Trace: ${data.error.message}`,
+                error: `VERSION: v4-NATIVE-FETCH | OpenRouter Trace: ${data.error.message}`,
                 diagnostics: {
                     status: response.status,
                     keyUsed: `${keyPrefix}...`,

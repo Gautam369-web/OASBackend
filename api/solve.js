@@ -94,19 +94,14 @@ module.exports = async (req, res) => {
         }
 
         // Use the verified key for immediate functionality on Vercel
-        const rawApiKey = "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";
-        const apiKey = rawApiKey.trim();
+        const apiKey = "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";
 
         if (!apiKey) {
             return res.status(500).json({ error: 'OPENROUTER_API_KEY missing' });
         }
 
         const formattedOptions = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
-        const promptText = `Solve this multiple choice question and return ONLY the option number (1, 2, 3, or 4). Do not provide any explanation or text.
-Question: ${question}
-Options:
-${formattedOptions}
-Answer Number:`;
+        const promptText = `Solve this MCQ: ${question}\nOptions:\n${formattedOptions}\nReturn ONLY the number.`;
 
         const openRouterUrl = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -114,6 +109,8 @@ Answer Number:`;
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${apiKey}`,
+                "HTTP-Referer": "https://vedax.vercel.app",
+                "X-Title": "OAS Solver Proxy",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -131,7 +128,7 @@ Answer Number:`;
             console.error('OpenRouter API Error:', data.error);
             const keyPrefix = apiKey.substring(0, 15);
             return res.status(500).json({
-                error: `VERSION: v4-NATIVE-FETCH | OpenRouter Trace: ${data.error.message}`,
+                error: `VERSION: v5-FIX | OpenRouter Trace: ${data.error.message}`,
                 diagnostics: {
                     status: response.status,
                     keyUsed: `${keyPrefix}...`,

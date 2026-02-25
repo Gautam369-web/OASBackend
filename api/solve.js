@@ -118,6 +118,12 @@ Answer Number:`;
                         text: promptText
                     }]
                 }],
+                safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                ],
                 generationConfig: {
                     temperature: 0.1,
                     topP: 0.95,
@@ -129,12 +135,27 @@ Answer Number:`;
 
         const data = await response.json();
 
+        // 1. Check for API-level errors (Rate Limits, Auth, etc)
+        if (data.error) {
+            console.error('Gemini API Error:', data.error);
+            return res.status(data.error.code || 500).json({
+                error: `Gemini API Error: ${data.error.message}`,
+                code: data.error.status
+            });
+        }
+
+        // 2. Check for Safety Blocks (Finish Reason: SAFETY)
+        if (data.candidates && data.candidates[0].finishReason === "SAFETY") {
+            return res.status(403).json({ error: "Question blocked by Gemini Safety Filters" });
+        }
+
+        // 3. Extract Answer
         if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts.length > 0) {
             const answer = data.candidates[0].content.parts[0].text.trim();
             res.status(200).send(answer);
         } else {
-            console.error('Gemini Error:', JSON.stringify(data, null, 2));
-            res.status(500).json({ error: 'Failed to solve with Gemini' });
+            console.error('Gemini Unexpected Response:', JSON.stringify(data, null, 2));
+            res.status(500).json({ error: 'Gemini returned no candidates. This usually happens if the prompt is blocked or the model is unavailable.' });
         }
     } catch (error) {
         console.error('Server Error:', error);

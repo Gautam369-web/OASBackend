@@ -137,23 +137,9 @@ Answer Number:`;
             res.status(200).send(answer);
         } else {
             console.error('Gemini Error:', JSON.stringify(data, null, 2));
-
-            // DISCOVERY: Try to find what models ARE available
-            let availableModels = [];
-            try {
-                const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`);
-                const listData = await listRes.json();
-                if (listData.models) {
-                    availableModels = listData.models.map(m => m.name.replace('models/', ''));
-                }
-            } catch (lex) {
-                console.error("Discovery failed", lex);
-            }
-
             res.status(500).json({
-                error: 'VERSION: v9-DISCOVERY | Failed to solve with Gemini',
-                details: data.error || data,
-                availableModels: availableModels.slice(0, 10) // Show first 10
+                error: 'Failed to solve question. Please try again.',
+                details: data.error || 'Response Parsing Error'
             });
         }
     } catch (error) {

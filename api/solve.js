@@ -94,7 +94,8 @@ module.exports = async (req, res) => {
         }
 
         // Use the verified key for immediate functionality on Vercel
-        const apiKey = "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";
+        const rawApiKey = "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";
+        const apiKey = rawApiKey.trim();
 
         if (!apiKey) {
             return res.status(500).json({ error: 'OPENROUTER_API_KEY missing' });
@@ -113,12 +114,12 @@ Answer Number:`;
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${apiKey}`,
-                "HTTP-Referer": "https://vedax.vercel.app", // Required by OpenRouter
+                "HTTP-Referer": "https://vedax.vercel.app",
                 "X-Title": "OAS Solver Proxy",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "google/gemini-2.0-flash-001", // High accuracy, low latency
+                model: "google/gemini-2.0-flash-001",
                 messages: [{ role: "user", content: promptText }],
                 temperature: 0.1,
                 max_tokens: 10
@@ -130,7 +131,15 @@ Answer Number:`;
         // 1. Check for API-level errors
         if (data.error) {
             console.error('OpenRouter API Error:', data.error);
-            return res.status(500).json({ error: `OpenRouter Error: ${data.error.message || 'Unknown API Error'}` });
+            const keyPrefix = apiKey.substring(0, 15);
+            return res.status(500).json({
+                error: `OpenRouter Trace: ${data.error.message}`,
+                diagnostics: {
+                    status: response.status,
+                    keyUsed: `${keyPrefix}...`,
+                    errorDetail: data.error
+                }
+            });
         }
 
         // 2. Extract Answer
@@ -139,7 +148,7 @@ Answer Number:`;
             res.status(200).send(answer);
         } else {
             console.error('OpenRouter Unexpected Response:', JSON.stringify(data, null, 2));
-            res.status(500).json({ error: 'OpenRouter returned no response. Check your credits or model status.' });
+            res.status(500).json({ error: 'OpenRouter returned no response payload.', details: data });
         }
     } catch (error) {
         console.error('Server Error:', error);

